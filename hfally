@@ -1,0 +1,239 @@
+#!/bin/bash -e
+
+# Configuration file
+source .hfallyconf
+script_location=$(dirname "${BASH_SOURCE[0]}")
+
+# Used colors
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+
+# Return and exit
+die () {
+    echo -e "$@"
+    exit 1
+}
+
+# Return green done
+good () {
+    echo -e "${GREEN}done${NC}"
+}
+
+# Create new project
+create_project () {
+    sudo printf "Creating project...\n"
+    #Create project and setup workspace
+    mkdir -p "$1.$domain/public_html"
+    echo "<html><head><title>Welcome to $1.$domain!</title></head><body><h1>Hello World!</h1></body></html>" > "$1.$domain/public_html/index.html"
+
+    # Initialize git in root folder
+    echo "Initializing git repository in project..."
+    cd "$1.$domain/public_html"
+    git init
+
+    # Go back to parent folder
+    cd ../../
+
+    link_folder $1 "created in here"
+
+    echo "Project created!"
+    printf "Visit http://$1.$domain\n"
+    exit 1
+}
+
+# Set directory as workspace
+park_folder () {
+    sudo chmod -R 755 $(pwd)
+    [[ -n "$1" ]] && echo $1 || echo "$(pwd) has been set as parent folder to your projects"
+    exit 1
+}
+
+# Link existing project
+link_folder () {
+    # Create Virtual Host File
+    sudo echo -n "Creating virtual host file... - "
+    
+    case $2 in
+        "created in here")
+            directory="$(pwd)/$1.$domain/public_html"
+            ;;
+        "")
+            if [ -d "public"  ]; then
+                directory="$(pwd)/public"
+            elif [ -d "public_html" ]; then
+                directory="$(pwd)/public_html"
+            else
+                directory=$(pwd)
+            fi
+            ;;
+        *)
+            die "Expected empty argument, got: $2"
+            ;;
+    esac
+
+    sudo sh -c "echo \"<VirtualHost *:80>
+    # The ServerName directive sets the request scheme, hostname and port that
+    # the server uses to identify itself. This is used when creating
+    # redirection URLs. In the context of virtual hosts, the ServerName
+    # specifies what hostname must appear in the request's Host: header to
+    # match this virtual host. For the default virtual host (this file) this
+    # value is not decisive as it is used as a last resort host regardless.
+    # However, you must set it for any further virtual host explicitly.
+    #ServerName www.example.com
+
+    ServerAdmin	    webmaster@$1.$domain
+    ServerName	    $1.$domain
+    ServerAlias	    www.$1.$domain
+    DocumentRoot	$directory
+
+    # Available loglevels: trace8, ..., trace1, debug, info, notice, warn,
+    # error, crit, alert, emerg.
+    # It is also possible to configure the loglevel for particular
+    # modules, e.g.
+    #LogLevel info ssl:warn
+
+    ErrorLog	\${APACHE_LOG_DIR}/${1}.$domain-error.log
+    CustomLog	\${APACHE_LOG_DIR}/${1}.$domain-access.log combined
+
+    # For most configuration files from conf-available/, which are
+    # enabled or disabled at a global level, it is possible to
+    # include a line for only one particular virtual host. For example the
+    # following line enables the CGI configuration for this host only
+    # after it has been globally disabled with "a2disconf".
+    #Include conf-available/serve-cgi-bin.conf
+
+    <Directory '$directory'>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>\" > /etc/apache2/sites-available/$1.$domain.conf"
+    good # virtual host file created
+    
+    printf "\n"
+
+    # Enable Site
+    echo -n "Enabling new site... - "
+    sudo a2ensite "$1.$domain.conf" &> /dev/null
+    good # site enabled
+   
+    # Append to hosts
+    sudo cp /etc/hosts /etc/hosts.d
+    
+    sudo sh -c "echo \"
+    127.0.0.1   $1.$domain
+    127.0.0.1   www.$1.$domain
+    \" >> /etc/hosts"
+
+    printf "\n"
+
+    # Restart Apache
+    echo -n "Restarting apache... - "
+    sudo service apache2 restart
+    good #apache restarted
+
+    printf "\n"
+}
+
+# Return the description of HFALLY
+info () {
+    printf "${BLUE}Hello $(whoami)!\n${NC}"
+    printf "\n"
+    printf "HFALLY $GREEN$version$NC\n"
+    printf "\n"
+    
+    printf "${YELLOW}Usage:$NC
+  command [argument]\n"
+    printf "\n"
+
+    printf "${YELLOW}Available commands:$NC
+  ${GREEN}domain${NC}\tDisplays/Sets domain tld.
+  ${GREEN}help${NC}\tDisplays help for a given command [command optional]
+  ${GREEN}link${NC}\tVirtualizes an existing project
+  ${GREEN}new${NC}\t\tCreates new project (name required)
+  ${GREEN}park${NC}\tSets present directory as workspace/home for all projects\n"
+    exit 1
+}
+
+# Change domain in conf file
+change_domain () {
+    sed -i "s/domain=.*/domain='$1'/g" "$script_location/.hfallyconf"
+    printf "${GREEN}Domain tld changed to '$1'${NC}\n"
+    exit 1
+}
+
+# Used for setting usage and help
+set_topic () {
+    printf "${YELLOW}$1:$NC
+  $2\n"
+}
+
+# Display help for command
+helps () {
+    [[ -n $1 ]] || info
+
+    case "$1" in
+        "park")
+            helper="Make sure you are in your workspace, this command will register it with HFALLY"
+            ;;
+        "new")
+            add="<name>"
+            argument="${GREEN}name${NC}\tThe new project name"
+            helper="Creates a new project"
+            ;;
+        "link")
+            helper="Make sure you are in your project directory. It links it to HFALLY"
+            ;;
+        "domain")
+            add="[<name>]"
+            argument="${GREEN}name${NC}\tThe new domain-tld"
+            helper="When name is not set, it displays the current domain-tld. If name is set however, it changes the domain-tld"
+            ;;
+        "help")
+            add="[<command>]"
+            argument="${GREEN}command${NC}\tThe command to explain"
+            helper="The ${GREEN}help${NC} command displays help for a given command"
+            ;;
+        *)
+            die "Command not found"
+            ;;
+    esac
+    
+    set_topic "Usage" "$1 $add"
+    printf "\n"
+    [[ -n $argument  ]] && set_topic "Arguments" "$argument \n"
+    set_topic "Help" "$helper"
+
+    exit 1
+}
+
+# Check that action was stated
+[[ -n "$1" ]] || info
+
+# Check that action is valid
+case "$1" in 
+    "park")
+        park_folder
+        ;;
+    "new")
+        [[ -n "$2"  ]] || die "Project name required"
+        create_project $2
+        ;;
+    "link")
+	    project=${PWD##*/}
+	    link_folder $project
+	    die "Project linked! Visit http://$project.$domain"
+        ;;
+    "domain")
+        [[ -n $2  ]] || die "${GREEN}Domain:${NC} $domain"
+        change_domain $2
+        ;;
+    "help")
+        helps $2
+        exit 1
+        ;;
+    *)
+        die "Unrecognized action"
+esac
