@@ -149,11 +149,11 @@ info () {
     printf "\n"
 
     printf "${YELLOW}Available commands:$NC
-  ${GREEN}domain${NC}\tDisplays/Sets domain tld.
-  ${GREEN}help${NC}\tDisplays help for a given command [command optional]
-  ${GREEN}link${NC}\tVirtualizes an existing project
+  ${GREEN}domain${NC}\tDisplays/Sets domain tld
+  ${GREEN}help${NC}\t\tDisplays help for a given command [command optional]
+  ${GREEN}link${NC}\t\tVirtualizes an existing project
   ${GREEN}new${NC}\t\tCreates new project (name required)
-  ${GREEN}park${NC}\tSets present directory as workspace/home for all projects\n"
+  ${GREEN}park${NC}\t\tSets present directory as workspace/home for all projects\n"
     exit 1
 }
 
