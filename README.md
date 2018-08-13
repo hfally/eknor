@@ -53,6 +53,9 @@ Available commands:
   new		Creates new project (name required)
   park		Sets present directory as workspace/home for all projects
 ````
+#### Pending ####
+----
+- [ ] Ability to revert creation 
 
 ## License
 
