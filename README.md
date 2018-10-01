@@ -21,7 +21,7 @@ Furthermore, it gives you a customizable TLD and keeps a backup of your hosts fi
 Other distro will be supported in updates.
 
 ## Installation
-Clone repository into your `/home` directory and add `$HOME/eknor/bin` to your PATH.
+Clone repository into your `~/` directory and add `$HOME/eknor/bin` to your PATH.
 
 #### How to add to your PATH
 Edit .bashrc in your home directory and add the following line:
