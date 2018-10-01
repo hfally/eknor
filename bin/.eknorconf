@@ -1,3 +1,4 @@
 #!/bin/bash -e
-domain='local'
-version='1.0.0'
+domain='staging'
+version='1.0.1'
+ip='127.0.0.1'

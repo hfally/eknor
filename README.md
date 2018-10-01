@@ -18,9 +18,6 @@ vanilla project.
 
 Furthermore, it gives you a customizable TLD and keeps a backup of your hosts file in case you wish to rollback.
 
-## Supported OS
-Ubuntu is the only supported distro for now, however, its likely it works on Debian too.
-
 Other distro will be supported in updates.
 
 ## Installation
@@ -37,25 +34,58 @@ You will need to source your .bashrc or logout/login (or restart the terminal) f
 
 **if you use zsh or any other shell, follow the same route**
 
-## Usage
-Run `eknor help` to get all use case, and run `eknor help COMMAND_NAME` for guidance on each of the command.
+## Basic Usage
+Eknor can be used to initiate a new project; it creates a work director and an `index.php` file inside the `myapp.staging/public` directory (assuming myapp is the name of your new project). Eknor can also be used on an existing project, be it a vanilla PHP project or one built on a PHP framework (Yii, Laravel, Code-Igniter, etc).
 
-````
-EKNOR 1.0.0
+* Go to your workspace on the terminal
 
-Usage:
-  command [argument]
+    `$ cd ~/projects` (Assuming ~/projects is your workspace)
 
-Available commands:
-  domain	Displays/Sets domain tld
-  help		Displays help for a given command [command optional]
-  link		Virtualizes an existing project
-  new		Creates new project (name required)
-  park		Sets present directory as workspace/home for all projects
-````
+* To configure your workspace so eknor recognizes it, run
+
+    `$ eknor park`
+
+* To intiate a new project, lets assume the new project's name will be `myapp` run
+
+    `$ eknor new myapp` (Make sure you are inside your workspace)
+
+    A new directory will be created `mpapp.staging/public/index.php`
+
+* To create virtual-host for an existing project run
+
+    `$ eknor link` (Run this in the project's directory)
+
+    Lets take a framework like Laravel for instance, assuming your Laravel projects name is `blog`
+
+    `$ cd blog`
+
+    `$ eknor link`
+
+    Eknor automatically detects your `blog/public`
+
+    Follow this same guide for a vanilla project or any other framework.
+
+That's it!
+
+You can always get help through `$ eknor help [command: eg. link]`
+
+## Advanced Usage
+
+Eknor's default TLD (.com, .org, .net, etc) is `.staging`, however in the spirit of freedom and open-source, you are at liberty to change it to whatever you want. Assuming you want to change it to `.local`
+
+
+`$ eknor domain local`
+
+To get current TLD, simply run
+
+`$ eknor domain`
+
 #### Pending ####
 ----
 - [ ] Ability to revert creation 
+
+## Supported OS
+Ubuntu is the only supported distro for now, however, its likely it works on Debian too.
 
 ## License
 

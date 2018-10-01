@@ -123,8 +123,8 @@ link_folder () {
     sudo cp /etc/hosts /etc/hosts.d
     
     sudo sh -c "echo \"
-    127.0.0.1   $1.$domain
-    127.0.0.1   www.$1.$domain
+    $ip   $1.$domain
+    $ip   www.$1.$domain
     \" >> /etc/hosts"
 
     printf "\n"
