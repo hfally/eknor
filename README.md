@@ -24,9 +24,11 @@ Other distro will be supported in updates.
 Clone repository into your `~/` directory
 
 Go to your home directory on your terminal:
+
 `$ cd ~`
 
 Clone eknor into your home directory:
+
 `$ git clone https://github.com/hfally/eknor.git`
 
 Add `$HOME/eknor/bin` to your PATH.
