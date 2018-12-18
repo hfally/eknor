@@ -21,14 +21,29 @@ Furthermore, it gives you a customizable TLD and keeps a backup of your hosts fi
 Other distro will be supported in updates.
 
 ## Installation
-Clone repository into your `~/` directory and add `$HOME/eknor/bin` to your PATH.
+Clone repository into your `~/` directory
+
+Go to your home directory on your terminal:
+`$ cd ~`
+
+Clone eknor into your home directory:
+`$ git clone https://github.com/hfally/eknor.git`
+
+Add `$HOME/eknor/bin` to your PATH.
 
 #### How to add to your PATH
-Edit .bashrc in your home directory and add the following line:
+Edit .bashrc or .zshrc in your home directory and add the following line:
+To edit, you can use terminal-based editors like *vi* or *nano*. I will use nano as an example.
+
+`$ nano ~/.bashrc`
+
+When the text editor comes up, scroll to the bottom and add this: 
 
 `export PATH="$PATH:$HOME/eknor/bin"`
 
-You will need to source your .bashrc or logout/login (or restart the terminal) for the changes to take effect. To source your .bashrc, simply type
+Press `ctrl + x` and `y` to save it.
+
+You will need to source your .bashrc or logout/login (or restart the terminal) for the changes to take effect. To source your .bashrc, simply type:
 
 `$ source ~/.bashrc`
 
