@@ -1,5 +1,8 @@
 #!/bin/bash -e
 
+# Initialize sudo by getting the user to enter password once and not have to during any process.
+sudo echo "Sudo initialized!" &>/dev/null 
+
 # Configuration file
 source .eknorconf
 script_location=$(dirname "${BASH_SOURCE[0]}")
@@ -9,6 +12,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
+RED='\033[0;31m'
 
 # Return and exit
 die () {
@@ -23,14 +27,16 @@ good () {
 
 # Create new project
 create_project () {
+	domain=$1.$tld
+
     sudo printf "Creating project...\n"
     #Create project and setup workspace
-    mkdir -p "$1.$domain/public_html"
-    echo "<html><head><title>Welcome to $1.$domain!</title></head><body><h1>Hello World!</h1></body></html>" > "$1.$domain/public_html/index.html"
+    mkdir -p "$domain/public_html"
+    echo "<html><head><title>Welcome to $domain!</title></head><body><h1>Hello World!</h1></body></html>" > "$domain/public_html/index.html"
 
     # Initialize git in root folder
     echo "Initializing git repository in project..."
-    cd "$1.$domain/public_html"
+    cd "$domain/public_html"
     git init
 
     # Go back to parent folder
@@ -39,7 +45,7 @@ create_project () {
     link_folder $1 "created in here"
 
     echo "Project created!"
-    printf "Visit http://$1.$domain\n"
+    printf "Visit http://$domain\n"
     exit 1
 }
 
@@ -52,12 +58,137 @@ park_folder () {
 
 # Link existing project
 link_folder () {
+    directory=$(_get_project_root $2)
+    domain=$1.$tld
+    
     # Create Virtual Host File
     sudo echo -n "Creating virtual host file... - "
+
+    sudo sh -c "echo \"<VirtualHost *:80>
+    ServerAdmin	    webmaster@$domain
+    ServerName	    $domain
+    ServerAlias	    www.$domain
+    DocumentRoot	$directory
+
+    ErrorLog	/var/log/apache2/$domain-error.log
+    CustomLog	/var/log/apache2/$domain-access.log combined
+
+    <Directory '$directory'>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>\" > /etc/apache2/sites-available/$domain.conf"
+    good # virtual host file created
     
-    case $2 in
+    printf "\n"
+
+    # Enable Site
+    echo -n "Enabling new site... - "
+    sudo a2ensite "$domain.conf" &> /dev/null
+    good # site enabled
+   
+    # Append to hosts
+    sudo cp /etc/hosts /etc/hosts.d
+    
+    sudo sh -c "echo \"
+    $ip   $domain
+    $ip   www.$domain
+    \" >> /etc/hosts"
+
+    printf "\n"
+
+	_restart_apache
+
+    printf "\n"
+}
+
+# Add TLS to project.
+secure_link () {
+	# Verify that dependencies are available (openssl, mod_ssl).
+	absent_dependencies=()
+	dependencies=(openssl apache2 certutil)
+	
+	for dependency in ${dependencies[@]}; do
+		command -v $dependency >/dev/null 2>&1 || absent_dependencies+=($dependency)
+	done
+	
+	if [ ${#absent_dependencies} -ne 0 ]; then
+		printf "${RED}The following are missing in your system:$NC\n"
+		
+		count=1
+		
+		for absent_dependency in ${absent_dependencies[@]}; do
+			echo -e "$count. $absent_dependency"
+			
+			((count+=1))
+		done
+		
+		exit
+	fi
+	
+	# Verify that mod_ssl is enabled for apache2.
+	(ls /etc/apache2/mods-enabled | grep ssl) &>/dev/null || die "${RED}ERROR: mod_ssl is an apache2 needed for SSL. It is either missing or not enabled. Try ${NC}sudo a2enmod ssl ${RED} then retry ${NC} eknor secure${RED}.$NC"
+	
+	# set variables.
+	domain=$1.$tld
+	site="/etc/apache2/sites-enabled/$domain.conf"
+	directory=$(_get_project_root)
+	
+	# Check if the site exists.
+	[[ -f $site ]] || printf "Site not found, linking project:\n\n$(eknor link)\n\n" 
+
+	# Generate TLS certificate.
+	echo -n "Generating certificate... - "
+	_generate_tls $1
+	good # certificate generated.
+	
+	printf "\n"
+	
+	# Edit the site conf in the apache folder.
+    sudo echo -n "Updating virtual host file... - "
+    
+	sudo sh -c "echo \"<VirtualHost *:80>
+    ServerName      $domain
+    ServerAlias     www.$domain
+    Redirect / https://$domain/	
+</VirtualHost>
+
+<VirtualHost _default_:443>
+    ServerAdmin	    webmaster@$domain
+    ServerName	    $domain
+    ServerAlias     www.$domain
+    DocumentRoot    $directory
+
+    ErrorLog	/var/log/apache2/$domain-error.log
+    CustomLog	/var/log/apache2/$domain-access.log combined
+
+    SSLEngine              on
+    SSLCertificateFile     $script_location/../certs/$domain.crt
+    SSLCertificateKeyFile  $script_location/../certs/$domain.key
+	
+    <Directory '$directory'>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>\" > /etc/apache2/sites-available/$domain.conf"
+    good # virtual host file created
+	
+	printf "\n"
+
+	_restart_apache
+
+	printf "\n"
+}
+
+# Get the accurate project root directory.
+_get_project_root () {
+	domain=$1.$tld
+
+	case $1 in
         "created in here")
-            directory="$(pwd)/$1.$domain/public_html"
+            directory="$(pwd)/$domain/public_html"
             ;;
         "")
             if [ -d "public"  ]; then
@@ -72,69 +203,48 @@ link_folder () {
             die "Expected empty argument, got: $2"
             ;;
     esac
-
-    sudo sh -c "echo \"<VirtualHost *:80>
-    # The ServerName directive sets the request scheme, hostname and port that
-    # the server uses to identify itself. This is used when creating
-    # redirection URLs. In the context of virtual hosts, the ServerName
-    # specifies what hostname must appear in the request's Host: header to
-    # match this virtual host. For the default virtual host (this file) this
-    # value is not decisive as it is used as a last resort host regardless.
-    # However, you must set it for any further virtual host explicitly.
-    #ServerName www.example.com
-
-    ServerAdmin	    webmaster@$1.$domain
-    ServerName	    $1.$domain
-    ServerAlias	    www.$1.$domain
-    DocumentRoot	$directory
-
-    # Available loglevels: trace8, ..., trace1, debug, info, notice, warn,
-    # error, crit, alert, emerg.
-    # It is also possible to configure the loglevel for particular
-    # modules, e.g.
-    #LogLevel info ssl:warn
-
-    ErrorLog	/var/log/apache2/${1}.$domain-error.log
-    CustomLog	/var/log/apache2/${1}.$domain-access.log combined
-
-    # For most configuration files from conf-available/, which are
-    # enabled or disabled at a global level, it is possible to
-    # include a line for only one particular virtual host. For example the
-    # following line enables the CGI configuration for this host only
-    # after it has been globally disabled with "a2disconf".
-    #Include conf-available/serve-cgi-bin.conf
-
-    <Directory '$directory'>
-        Options Indexes FollowSymLinks
-        AllowOverride All
-        Require all granted
-    </Directory>
-</VirtualHost>\" > /etc/apache2/sites-available/$1.$domain.conf"
-    good # virtual host file created
     
-    printf "\n"
+    echo $directory
+}
 
-    # Enable Site
-    echo -n "Enabling new site... - "
-    sudo a2ensite "$1.$domain.conf" &> /dev/null
-    good # site enabled
-   
-    # Append to hosts
-    sudo cp /etc/hosts /etc/hosts.d
-    
-    sudo sh -c "echo \"
-    $ip   $1.$domain
-    $ip   www.$1.$domain
-    \" >> /etc/hosts"
-
-    printf "\n"
-
-    # Restart Apache
+# Restart Apache
+_restart_apache () {
     echo -n "Restarting apache... - "
     sudo service apache2 restart
-    good #apache restarted
+    good # apache restarted
+}
 
-    printf "\n"
+# Generate new certificate for projects.
+_generate_tls () {
+	domain="$1.$tld"
+	crt_path="$script_location/../certs/$domain.crt"
+	key_path="$script_location/../certs/$domain.key"
+	
+	# Generate certificate.
+	openssl req \
+	-new \
+	-newkey \
+	rsa:2048 \
+	-x509 \
+	-sha256 \
+	-days 365 \
+	-nodes \
+	-out $crt_path \
+	-keyout $key_path \
+	-subj "/CN=$domain/O=Eknor/OU=Eknor" \
+	-reqexts SAN \
+	-extensions SAN \
+	-config <(cat /etc/ssl/openssl.cnf \
+    	<(printf "[SAN]\nsubjectAltName=DNS:$domain,IP:127.0.0.1")) &> /dev/null
+	
+	# Trust the certificate.
+	_trust_certificate $crt_path $domain &>/dev/null
+}
+
+# Trust the given certificate file in the Mac Keychain.
+_trust_certificate () {
+	sudo certutil -d sql:$HOME/.pki/nssdb -A -t TC -n $2 -i $1
+	sudo certutil -d $HOME/.mozilla/firefox/*.default -A -t TC -n $2 -i $1
 }
 
 # Return the description of EKNOR
@@ -149,19 +259,38 @@ info () {
     printf "\n"
 
     printf "${YELLOW}Available commands:$NC
-  ${GREEN}domain${NC}\tDisplays/Sets domain tld
+  ${GREEN}tld${NC}\tDisplays/Sets domain tld
   ${GREEN}help${NC}\t\tDisplays help for a given command [command optional]
   ${GREEN}link${NC}\t\tVirtualizes an existing project
+  ${GREEN}secure${NC}\tAdds TLS to an already linked project
   ${GREEN}new${NC}\t\tCreates new project (name required)
   ${GREEN}park${NC}\t\tSets present directory as workspace/home for all projects\n"
     exit 1
 }
 
-# Change domain in conf file
-change_domain () {
-    sed -i "s/domain=.*/domain='$1'/g" "$script_location/.hfallyconf"
+# Change domain tld in conf file
+change_tld () {
+    sed -i "s/tld=.*/tld='$1'/g" "$script_location/.eknorconf"
     printf "${GREEN}Domain tld changed to '$1'${NC}\n"
     exit 1
+}
+
+# Create Eknor project folder and install project manager
+install () {
+    printf "${GREEN}Creating project folder...${NC}\n"
+
+    DIRECTORY=~/eknor_projects
+    OLDDIRECTORY = $PWD
+
+    if [ -d "$DIRECTORY" ]; then
+        cd DIRECTORY
+        git pull
+        cd OLDDIRECTORY
+        printf "${GREEN}Domain tld changed to '$1'${NC}\n"
+        exit 1
+    fi
+
+    git clone $DIRECTORY
 }
 
 # Used for setting usage and help
@@ -176,7 +305,7 @@ helps () {
 
     case "$1" in
         "park")
-            helper="Make sure you are in your workspace, this command will register it with HFALLY"
+            helper="Make sure you are in your workspace, this command will register it with EKNOR"
             ;;
         "new")
             add="<name>"
@@ -184,12 +313,18 @@ helps () {
             helper="Creates a new project"
             ;;
         "link")
-            helper="Make sure you are in your project directory. It links it to HFALLY"
+            helper="Make sure you are in your project directory. It links it to EKNOR"
             ;;
-        "domain")
+        "tld")
             add="[<name>]"
             argument="${GREEN}name${NC}\tThe new domain-tld"
             helper="When name is not set, it displays the current domain-tld. If name is set however, it changes the domain-tld"
+            ;;
+        "install")
+            helper="TODO: complete this feature."
+            ;;
+        "secure")
+            helper="Add HTTPS to your linked project. This can only be done on an already linked project."
             ;;
         "help")
             add="[<command>]"
@@ -224,11 +359,19 @@ case "$1" in
     "link")
 	    project=${PWD##*/}
 	    link_folder $project
-	    die "Project linked! Visit http://$project.$domain"
+	    die "Project linked! Visit https://$project.$tld"
         ;;
-    "domain")
-        [[ -n $2  ]] || die "${GREEN}Domain:${NC} $domain"
-        change_domain $2
+    "secure")
+	    project=${PWD##*/}
+	    secure_link $project
+	    die "TLS has been added to your project. Visit https://$project.$tld"
+        ;;
+    "tld")
+        [[ -n $2  ]] || die "${GREEN}Domain-TLD:${NC} $tld"
+        change_tld $2
+        ;;
+    "install")
+        install
         ;;
     "help")
         helps $2
@@ -237,3 +380,4 @@ case "$1" in
     *)
         die "Unrecognized action"
 esac
+

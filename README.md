@@ -20,8 +20,18 @@ Furthermore, it gives you a customizable TLD and keeps a backup of your hosts fi
 
 Other distro will be supported in updates.
 
+## Supported OS
+Ubuntu and other Debian-based distros.
+
+## Dependencies
+The following applications are needed on your device for eknor to run successfully.
+
+- Apache2: `$ sudo apt install apache2`
+- OpenSSL: You most likely already have this installed. You can confirm by running `$ which openssl`. If it is not found, proceed with installation using `$ sudo apt install openssl` 
+- Certutil: `$ sudo apt install libnss3-tools` - This is used to trust TLS certificates locally.
+
 ## Installation
-Clone repository into your `~/` directory
+Clone repository into your `~/` (your home directory) directory.
 
 Go to your home directory on your terminal:
 
@@ -82,6 +92,12 @@ Eknor can be used to initiate a new project; it creates a work director and an `
 
     Follow this same guide for a vanilla project or any other framework.
 
+* To add HTTPS to an already linked project,
+
+	`$ cd blog`
+	
+	`$ eknor secure` 
+
 That's it!
 
 You can always get help through `$ eknor help [command: eg. link]`
@@ -91,22 +107,26 @@ You can always get help through `$ eknor help [command: eg. link]`
 Eknor's default TLD (.com, .org, .net, etc) is `.staging`, however in the spirit of freedom and open-source, you are at liberty to change it to whatever you want. Assuming you want to change it to `.local`
 
 
-`$ eknor domain local`
+`$ eknor tld local`
 
 To get current TLD, simply run
 
-`$ eknor domain`
+`$ eknor tld`
 
 #### Pending ####
 ----
 - [ ] Ability to revert creation 
-
-## Supported OS
-Ubuntu is the only supported distro for now, however, its likely it works on Debian too.
+- [ ] Ability to unlink
+- [ ] Ability to revert TLS certificate generation 
 
 ## License
 
 Eknor is open-sourced software licensed under the [MIT license](http://opensource.org/licenses/MIT)
 
 ## Contribution
+**Contributors**
+
+- [Henry Falade](https://github.com/hfally)
+- [Nana-Hauwa Adeku](https://github.com/nanahawau)
+
 For contribution and personal bug reporting, send a mail to the author <a href='mailto:tofex4eva@yahoo.com'>tofex4eva@yahoo.com</a>
