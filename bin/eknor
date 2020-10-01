@@ -1,8 +1,5 @@
 #!/bin/bash -e
 
-# Initialize sudo by getting the user to enter password once and not have to during any process.
-sudo echo "Sudo initialized!" &>/dev/null 
-
 # Configuration file
 source .eknorconf
 script_location=$(dirname "${BASH_SOURCE[0]}")
@@ -105,6 +102,9 @@ link_folder () {
 
 # Add TLS to project.
 secure_link () {
+	# Initialize sudo by getting the user to enter password once and not have to during any process.
+	sudo echo "Sudo initialized!" &>/dev/null 
+
 	# Verify that dependencies are available (openssl, mod_ssl).
 	absent_dependencies=()
 	dependencies=(openssl apache2 certutil)
@@ -235,7 +235,7 @@ _generate_tls () {
 	-reqexts SAN \
 	-extensions SAN \
 	-config <(cat /etc/ssl/openssl.cnf \
-    	<(printf "[SAN]\nsubjectAltName=DNS:$domain,IP:127.0.0.1")) &> /dev/null
+    	<(printf "[SAN]\nsubjectAltName=DNS:$domain,IP:$ip")) &> /dev/null
 	
 	# Trust the certificate.
 	_trust_certificate $crt_path $domain &>/dev/null
@@ -259,12 +259,13 @@ info () {
     printf "\n"
 
     printf "${YELLOW}Available commands:$NC
-  ${GREEN}tld${NC}\tDisplays/Sets domain tld
+  ${GREEN}tld${NC}\t\tDisplays/Sets domain tld
   ${GREEN}help${NC}\t\tDisplays help for a given command [command optional]
   ${GREEN}link${NC}\t\tVirtualizes an existing project
   ${GREEN}secure${NC}\tAdds TLS to an already linked project
   ${GREEN}new${NC}\t\tCreates new project (name required)
-  ${GREEN}park${NC}\t\tSets present directory as workspace/home for all projects\n"
+  ${GREEN}park${NC}\t\tSets present directory as workspace/home for all projects
+  ${GREEN}update${NC}\tUpdate eknor to the latest version\n"
     exit 1
 }
 
@@ -299,6 +300,19 @@ set_topic () {
   $2\n"
 }
 
+# Pull new update for eknor
+update () {
+	printf "Pulling update..."
+	
+	printf "\n"
+	
+	cd $script_location/../ && git pull origin master
+	
+	printf "\n"
+	
+	echo -e "${GREEN}Eknor updated!$NC"
+}
+
 # Display help for command
 helps () {
     [[ -n $1 ]] || info
@@ -325,6 +339,9 @@ helps () {
             ;;
         "secure")
             helper="Add HTTPS to your linked project. This can only be done on an already linked project."
+            ;;
+        "update")
+            helper="Update Eknor to the latest version."
             ;;
         "help")
             add="[<command>]"
@@ -373,6 +390,9 @@ case "$1" in
     "install")
         install
         ;;
+    "update")
+    	update
+    	;;
     "help")
         helps $2
         exit 1
