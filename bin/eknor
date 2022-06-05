@@ -376,7 +376,7 @@ case "$1" in
     "link")
 	    project=${PWD##*/}
 	    link_folder $project
-	    die "Project linked! Visit https://$project.$tld"
+	    die "Project linked! Visit http://$project.$tld"
         ;;
     "secure")
 	    project=${PWD##*/}
